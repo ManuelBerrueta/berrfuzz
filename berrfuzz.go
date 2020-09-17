@@ -30,19 +30,24 @@ func ReadFileBytes(fileName string) ([]byte, error) {
 	return fileBytes, err
 }
 
+//Generator()
+// --- This will generate a random file, which will then be output to be used by the fuzzer
+//Mutator() This will mutate the existing file
+// --- Should eventually develop into something that allows us to select what to mutate
+
 func main() {
-	fmt.Println("BerrFuzz")
+	fmt.Println("-=BerrFuzz")
 
 	fileBytes, err := ReadFileBytes("test.txt")
 	if err != nil {
 		fmt.Println("Error reading files")
 	}
 	fmt.Println(string(fileBytes))
-	//data, err := ioutil.ReadFile("test.txt")
-	//if err != nil {
-	//	fmt.Println("File reading error", err)
-	//	return
-	//}
-	//fmt.Println("Contents of file:", string(data))
 
+	temp := "A"
+
+	for i := 0; i < 20; i++ {
+		temp += "A"
+		fmt.Printf("%s\n", temp)
+	}
 }
