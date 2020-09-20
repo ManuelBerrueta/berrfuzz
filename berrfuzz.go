@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"runtime"
 )
 
 // ReadFileBytes reads a file and returns bytes
@@ -34,7 +35,7 @@ func ReadFileBytes(fileName string) ([]byte, error) {
 	return fileBytes, err
 }
 
-// SetupLogger sets up local log file for fuzzing output
+// SetupLogger sets up local log file for fuzzing output //TODO: Possibly make logfilename input
 func SetupLogger() {
 	logFile, err := os.OpenFile("BerrFuzz-log.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
@@ -57,6 +58,25 @@ func main() {
 	//Add options to delete local log file
 	SetupLogger()
 
+	//Checking OS
+	// Here we could run alternative commands that may not be compatible with one OS
+
+	switch runtime.GOOS {
+	case "windows":
+		//ver, err := syscall.GetVersion()
+		//if err != nil {
+		//	panic(err)
+		//}
+		//Major := int(ver & 0xFF)
+		//Minor := int(ver >> 8 & 0xFF)
+		//Build := int(ver >> 16)
+		fmt.Printf("Running on Windows %d Build: %d | Arch: %s | CPU(s): %d\n", 0, 0, runtime.GOARCH, runtime.NumCPU()) //!WIP
+	case "linux":
+		fmt.Printf("Running on Linux '%s' | Ver: %s | Arch: %s | CPU(s): %d\n", "Ubuntu/Fedora/Whatever", "verTBD", runtime.GOARCH, runtime.NumCPU())
+	case "darwin":
+		fmt.Printf("Running on Mac OS '%s' | Ver: %s | Arch: %s | CPU(s): %d\n", "?", "verTBD", runtime.GOARCH, runtime.NumCPU())
+	}
+
 	fileBytes, err := ReadFileBytes("test.txt")
 	if err != nil {
 		fmt.Println("Error reading files")
@@ -76,6 +96,11 @@ func main() {
 	targetProgram := "Notepad"
 
 	cmd := exec.Command(targetProgram, payload)
+
+	//Outputs stdout and stderr
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
 	log.Printf("Running command")
 	//err = cmd.Run()
 
