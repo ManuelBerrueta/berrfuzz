@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"log"
+	mrand "math/rand"
 	"os"
 	"os/exec"
 	"runtime"
@@ -66,6 +67,18 @@ func RandomByteGenerator(size int) []byte {
 // --- This will generate a random file, which will then be output to be used by the fuzzer
 //Mutator() This will mutate the existing file
 // --- Should eventually develop into something that allows us to select what to mutate
+// FileMutator is the start of a more complex function that will use different
+//             techniques to flip bits/bytes
+func FileMutator(fileBytes []byte) {
+	numOfByteToFlip := 10
+
+	//C
+	randByte := mrand.Intn(0xFFFFFFFF)
+
+	for i := 0; i < numOfByteToFlip; i++ {
+		fileBytes[mrand.Intn(len(fileBytes))-1] = byte(randByte)
+	}
+}
 
 func main() {
 	fmt.Println("-=BerrFuzz")
