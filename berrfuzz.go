@@ -5,6 +5,7 @@ package main
 import (
 	"bufio"
 	"crypto/rand"
+	"flag"
 	"fmt"
 	"log"
 	mrand "math/rand"
@@ -80,8 +81,27 @@ func FileMutator(fileBytes []byte) {
 	}
 }
 
+// CleanLog removes the log file that contains possible crashes and the input
+func CleanLog() {
+	err := os.Remove("BerrFuzz-log.txt")
+	if err != nil {
+		fmt.Println("Failed to delete log file")
+	}
+}
+
 func main() {
 	fmt.Println("-=BerrFuzz")
+
+	cleanPtr := flag.Bool("clean", false, "Delete log file")
+	flag.Parse()
+
+	if *cleanPtr {
+		CleanLog()
+	}
+
+	//Testing
+	fmt.Println("flag.Args:", flag.Args()[0])
+	fmt.Println("Args:", os.Args)
 
 	//Add options to delete local log file
 	SetupLogger()
