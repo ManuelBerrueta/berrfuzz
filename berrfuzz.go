@@ -4,6 +4,7 @@ package main
 
 import (
 	"bufio"
+	"crypto/rand"
 	"fmt"
 	"log"
 	"os"
@@ -47,6 +48,20 @@ func SetupLogger() {
 	log.Printf("-=-==-===-====Start of New Fuzz Test")
 }
 
+// RandomByteGenerator generates random bytes of passed in size and returns []byte
+func RandomByteGenerator(size int) []byte {
+	builtBytes := make([]byte, size)
+
+	_, err := rand.Read(builtBytes)
+
+	if err != nil {
+		fmt.Println("Error creating random bytes: ", err)
+		os.Exit(-1)
+	}
+
+	return builtBytes
+}
+
 //Generator()
 // --- This will generate a random file, which will then be output to be used by the fuzzer
 //Mutator() This will mutate the existing file
@@ -84,13 +99,11 @@ func main() {
 	fmt.Println(string(fileBytes))
 
 	// Payload can be an optional input
-	payload := "..\\"
 	totalNum := 2000
 
-	for i := 0; i < totalNum; i++ {
-		payload += "..\\✁"
-	}
-	fmt.Printf(payload)
+	//! Could make an additional arg to be passed depends on what is beingtotalNum := 2000
+	payload := string(RandomByteGenerator(totalNum))
+	println("Payload: ", payload)
 
 	//! This will be a command line input
 	targetProgram := "Notepad"
@@ -113,6 +126,10 @@ func main() {
 
 	fmt.Printf("Output of program: %s", string(output))
 	log.Print("Done running command")
+
+	//TODO: Of possible interest
+	//fmt.Printf("Output of program: %s", cmd.Stdout)
+	//fmt.Printf("Output of program: %s", cmd.Stderr)
 
 	//TODO: Random byte + character generations
 	//TODO: Being able to choose certain character sets
