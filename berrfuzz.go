@@ -112,7 +112,7 @@ func main() {
 		CleanLog()
 	}
 
-	//Testing
+	//Testing Flags + Parameters
 	fmt.Println("flag.Args:", flag.Args()[0])
 	fmt.Println("Args:", os.Args)
 
@@ -150,26 +150,27 @@ func main() {
 	println("Payload: ", payload)
 
 	//! This will be a command line input
-	targetProgram := "Notepad"
+	targetProgram := "powershell.exe"
 
-	cmd := exec.Command(targetProgram, payload)
+	//cmd := exec.Command(targetProgram, string(payload))
+	cmd := exec.Command(targetProgram)
 
-	//Outputs stdout and stderr
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	//Output redirections stdout and stderr
+	//cmd.Stdout = os.Stdout
+	//cmd.Stderr = os.Stderr
 
 	log.Printf("Running command")
-	//err = cmd.Run()
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
+
 		log.Printf("-=-=####### Possible Crash:")
 		log.Printf("-=-=####### \tErr: %s", err.Error())
-		log.Printf("-=-=#######\t\tPayload @ Possible Crash: \"%s\"", payload)
+		log.Printf("-=-=#######\t\tPayload @ Possible Crash:\n \"%s\"", payload)
 	}
 
-	fmt.Printf("Output of program: %s", string(output))
-	log.Print("Done running command")
+	fmt.Printf("Output of program: %s\n", string(output))
+	log.Println("Done running command")
 
 	//TODO: Of possible interest
 	//fmt.Printf("Output of program: %s", cmd.Stdout)
