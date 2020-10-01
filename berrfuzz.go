@@ -14,6 +14,19 @@ import (
 	"runtime"
 )
 
+// Color for color for your visual pleasure :)
+type Color string
+
+// Some color for fun!
+const (
+	ColorBlack  Color = "\u001b[30m"
+	ColorRed          = "\u001b[31m"
+	ColorGreen        = "\u001b[32m"
+	ColorYellow       = "\u001b[33m"
+	ColorBlue         = "\u001b[34m"
+	ColorReset        = "\u001b[0m"
+)
+
 // ReadFileBytes reads a file and returns bytes
 func ReadFileBytes(fileName string) ([]byte, error) {
 	inFile, err := os.Open(fileName)
@@ -90,7 +103,7 @@ func CleanLog() {
 }
 
 func main() {
-	fmt.Println("-=BerrFuzz")
+	fmt.Println(string(ColorGreen), "-=BerrFuzz", string(ColorReset))
 
 	cleanPtr := flag.Bool("clean", false, "Delete log file")
 	flag.Parse()
@@ -106,9 +119,7 @@ func main() {
 	//Add options to delete local log file
 	SetupLogger()
 
-	//Checking OS
-	// Here we could run alternative commands that may not be compatible with one OS
-
+	// OS Check run for running compatible commands
 	switch runtime.GOOS {
 	case "windows":
 		//ver, err := syscall.GetVersion()
