@@ -75,8 +75,66 @@ func RandomByteGenerator(size int) []byte {
 	return builtBytes
 }
 
-// RandomFileGenerator will create a file with random bytes
-func RandomFileGenerator(size int, outFileName string) {
+// BitFlipper will flip the byteIndex bit in argument inByte, where index 0 is the MSB
+func BitFlipper(byteIndex int, inByte byte) byte {
+	if byteIndex < 0 || byteIndex > 7 {
+		fmt.Println("Error: BitFlipper() requires a byteIndex in range of 0-7")
+	}
+
+	for byteIndex < 0 || byteIndex > 7 {
+		fmt.Printf("Enter byteIndex in range of 0-7: ")
+		fmt.Scan(&byteIndex)
+	}
+
+	var byteWithFlippedBit byte
+	switch byteIndex {
+	case 0: //! Flip MSB
+		byteWithFlippedBit = inByte ^ 128
+	case 1:
+		byteWithFlippedBit = inByte ^ 64
+	case 2:
+		byteWithFlippedBit = inByte ^ 32
+	case 3:
+		byteWithFlippedBit = inByte ^ 16
+	case 4:
+		byteWithFlippedBit = inByte ^ 8
+	case 5:
+		byteWithFlippedBit = inByte ^ 4
+	case 6:
+		byteWithFlippedBit = inByte ^ 2
+	case 7:
+		byteWithFlippedBit = inByte ^ 1
+	}
+	return byteWithFlippedBit
+}
+
+// LeftByteShift shifts inByte by the amount of the  argument shiftBy
+func LeftByteShift(shiftBy int, inByte byte) byte {
+	shiftedLeftByte := inByte << shiftBy
+	return shiftedLeftByte
+}
+
+// RandomBitFlip will flip just 1 bit in a random Byte
+func RandomBitFlip(inData []byte, numBitsToFlip int) []byte {
+	randByteIndex := mrand.Intn(len(inData) - 1)
+	tempRandByte := inData[randByteIndex]
+
+	// This is a byteshift
+	inData[randByteIndex] = tempRandByte << 1
+
+	//Select random bit
+	//rndBitIndex := mrand.Intn(7//)
+	//tempBit := tempRandByte[ran//dBitIndex]
+
+	//flippedBit := ^randBit
+	//inData[randByte][randBit] = flippedBit
+	//TODO: Need to work on bit selection
+
+	return inData
+}
+
+// RandomByteFileGenerator will create a file with random bytes
+func RandomByteFileGenerator(size int, outFileName string) {
 	builtBytes := make([]byte, size)
 	_, err := rand.Read(builtBytes)
 
@@ -87,18 +145,18 @@ func RandomFileGenerator(size int, outFileName string) {
 
 	outFile, err := os.OpenFile(outFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
-		fmt.Println("outFile for RandomFileGenerator Failed to open")
+		fmt.Println("outFile for RandomByteFileGenerator Failed to open")
 		os.Exit(-1)
 	}
 
 	numByteWritten, err := outFile.Write(builtBytes)
 	if err != nil {
-		fmt.Println("outFile for RandomFileGenerator Failed to write bytes")
+		fmt.Println("outFile for RandomByteFileGenerator Failed to write bytes")
 		os.Exit(-1)
 	}
 
 	if numByteWritten < len(builtBytes) {
-		errorMessage := `Bytes written to outFile RandomFileGenerator
+		errorMessage := `Bytes written to outFile RandomByteFileGenerator
 						less then length of random bytes to write`
 		fmt.Println(errorMessage)
 	}
@@ -178,8 +236,9 @@ func main() {
 	//! This will be a command line input
 	targetProgram := "powershell.exe"
 
-	//cmd := exec.Command(targetProgram, string(payload))
 	cmd := exec.Command(targetProgram)
+	//cmd := exec.Command(targetProgram, string(payload))
+	//cmd := exec.Command(targetProgram)
 
 	//Output redirections stdout and stderr
 	//cmd.Stdout = os.Stdout
@@ -200,7 +259,7 @@ func main() {
 
 	fmt.Println("Testing RandomFileGeneration")
 
-	RandomFileGenerator(1024, "randomFile")
+	RandomByteFileGenerator(1024, "randomFile")
 
 	//TODO: Being able to choose certain character sets
 	//TODO: Integrate known bad strings
