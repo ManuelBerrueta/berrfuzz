@@ -1,7 +1,5 @@
 package main
 
-//https://www.w3schools.com/charsets/ref_html_utf8.asp
-
 import (
 	"bufio"
 	"crypto/rand"
@@ -29,7 +27,7 @@ const (
 
 // ReadFileBytes reads a file and returns bytes
 func ReadFileBytes(fileName string) ([]byte, error) {
-	inFile, err := os.Open(fileName)
+	inFile, err := os.OpenFile(fileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
 		fmt.Println("inFile Read Error")
 		return nil, err
@@ -77,7 +75,36 @@ func RandomByteGenerator(size int) []byte {
 	return builtBytes
 }
 
-//Generator()
+// RandomFileGenerator will create a file with random bytes
+func RandomFileGenerator(size int, outFileName string) {
+	builtBytes := make([]byte, size)
+	_, err := rand.Read(builtBytes)
+
+	if err != nil {
+		fmt.Println("Error creating random bytes: ", err)
+		os.Exit(-1)
+	}
+
+	outFile, err := os.OpenFile(outFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+	if err != nil {
+		fmt.Println("outFile for RandomFileGenerator Failed to open")
+		os.Exit(-1)
+	}
+
+	numByteWritten, err := outFile.Write(builtBytes)
+	if err != nil {
+		fmt.Println("outFile for RandomFileGenerator Failed to write bytes")
+		os.Exit(-1)
+	}
+
+	if numByteWritten < len(builtBytes) {
+		errorMessage := `Bytes written to outFile RandomFileGenerator
+						less then length of random bytes to write`
+		fmt.Println(errorMessage)
+	}
+}
+
+// Generator()
 // --- This will generate a random file, which will then be output to be used by the fuzzer
 //Mutator() This will mutate the existing file
 // --- Should eventually develop into something that allows us to select what to mutate
@@ -142,7 +169,6 @@ func main() {
 	}
 	fmt.Println(string(fileBytes))
 
-	// Payload can be an optional input
 	totalNum := 2000
 
 	//! Could make an additional arg to be passed depends on what is beingtotalNum := 2000
@@ -172,12 +198,12 @@ func main() {
 	fmt.Printf("Output of program: %s\n", string(output))
 	log.Println("Done running command")
 
-	//TODO: Of possible interest
-	//fmt.Printf("Output of program: %s", cmd.Stdout)
-	//fmt.Printf("Output of program: %s", cmd.Stderr)
+	fmt.Println("Testing RandomFileGeneration")
 
-	//TODO: Random byte + character generations
+	RandomFileGenerator(1024, "randomFile")
+
 	//TODO: Being able to choose certain character sets
 	//TODO: Integrate known bad strings
 	//TODO: Possibly integrate search for known bad functions
+	//TODO: Payload can be an optional input
 }
