@@ -1,10 +1,9 @@
 package main
 
-//https://www.w3schools.com/charsets/ref_html_utf8.asp
-
 import (
 	"bufio"
 	"crypto/rand"
+	"flag"
 	"fmt"
 	"log"
 	mrand "math/rand"
@@ -13,9 +12,22 @@ import (
 	"runtime"
 )
 
+// Color for color for your visual pleasure :)
+type Color string
+
+// Some color for fun!
+const (
+	ColorBlack  Color = "\u001b[30m"
+	ColorRed          = "\u001b[31m"
+	ColorGreen        = "\u001b[32m"
+	ColorYellow       = "\u001b[33m"
+	ColorBlue         = "\u001b[34m"
+	ColorReset        = "\u001b[0m"
+)
+
 // ReadFileBytes reads a file and returns bytes
 func ReadFileBytes(fileName string) ([]byte, error) {
-	inFile, err := os.Open(fileName)
+	inFile, err := os.OpenFile(fileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
 		fmt.Println("inFile Read Error")
 		return nil, err
@@ -63,7 +75,36 @@ func RandomByteGenerator(size int) []byte {
 	return builtBytes
 }
 
-//Generator()
+// RandomFileGenerator will create a file with random bytes
+func RandomFileGenerator(size int, outFileName string) {
+	builtBytes := make([]byte, size)
+	_, err := rand.Read(builtBytes)
+
+	if err != nil {
+		fmt.Println("Error creating random bytes: ", err)
+		os.Exit(-1)
+	}
+
+	outFile, err := os.OpenFile(outFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+	if err != nil {
+		fmt.Println("outFile for RandomFileGenerator Failed to open")
+		os.Exit(-1)
+	}
+
+	numByteWritten, err := outFile.Write(builtBytes)
+	if err != nil {
+		fmt.Println("outFile for RandomFileGenerator Failed to write bytes")
+		os.Exit(-1)
+	}
+
+	if numByteWritten < len(builtBytes) {
+		errorMessage := `Bytes written to outFile RandomFileGenerator
+						less then length of random bytes to write`
+		fmt.Println(errorMessage)
+	}
+}
+
+// Generator()
 // --- This will generate a random file, which will then be output to be used by the fuzzer
 //Mutator() This will mutate the existing file
 // --- Should eventually develop into something that allows us to select what to mutate
@@ -80,15 +121,32 @@ func FileMutator(fileBytes []byte) {
 	}
 }
 
+// CleanLog removes the log file that contains possible crashes and the input
+func CleanLog() {
+	err := os.Remove("BerrFuzz-log.txt")
+	if err != nil {
+		fmt.Println("Failed to delete log file")
+	}
+}
+
 func main() {
-	fmt.Println("-=BerrFuzz")
+	fmt.Println(string(ColorGreen), "-=BerrFuzz", string(ColorReset))
+
+	cleanPtr := flag.Bool("clean", false, "Delete log file")
+	flag.Parse()
+
+	if *cleanPtr {
+		CleanLog()
+	}
+
+	//Testing Flags + Parameters
+	fmt.Println("flag.Args:", flag.Args()[0])
+	fmt.Println("Args:", os.Args)
 
 	//Add options to delete local log file
 	SetupLogger()
 
-	//Checking OS
-	// Here we could run alternative commands that may not be compatible with one OS
-
+	// OS Check run for running compatible commands
 	switch runtime.GOOS {
 	case "windows":
 		//ver, err := syscall.GetVersion()
@@ -111,7 +169,6 @@ func main() {
 	}
 	fmt.Println(string(fileBytes))
 
-	// Payload can be an optional input
 	totalNum := 2000
 
 	//! Could make an additional arg to be passed depends on what is beingtotalNum := 2000
@@ -119,33 +176,34 @@ func main() {
 	println("Payload: ", payload)
 
 	//! This will be a command line input
-	targetProgram := "Notepad"
+	targetProgram := "powershell.exe"
 
-	cmd := exec.Command(targetProgram, payload)
+	//cmd := exec.Command(targetProgram, string(payload))
+	cmd := exec.Command(targetProgram)
 
-	//Outputs stdout and stderr
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	//Output redirections stdout and stderr
+	//cmd.Stdout = os.Stdout
+	//cmd.Stderr = os.Stderr
 
 	log.Printf("Running command")
-	//err = cmd.Run()
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
+
 		log.Printf("-=-=####### Possible Crash:")
 		log.Printf("-=-=####### \tErr: %s", err.Error())
-		log.Printf("-=-=#######\t\tPayload @ Possible Crash: \"%s\"", payload)
+		log.Printf("-=-=#######\t\tPayload @ Possible Crash:\n \"%s\"", payload)
 	}
 
-	fmt.Printf("Output of program: %s", string(output))
-	log.Print("Done running command")
+	fmt.Printf("Output of program: %s\n", string(output))
+	log.Println("Done running command")
 
-	//TODO: Of possible interest
-	//fmt.Printf("Output of program: %s", cmd.Stdout)
-	//fmt.Printf("Output of program: %s", cmd.Stderr)
+	fmt.Println("Testing RandomFileGeneration")
 
-	//TODO: Random byte + character generations
+	RandomFileGenerator(1024, "randomFile")
+
 	//TODO: Being able to choose certain character sets
 	//TODO: Integrate known bad strings
 	//TODO: Possibly integrate search for known bad functions
+	//TODO: Payload can be an optional input
 }
