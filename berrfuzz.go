@@ -102,7 +102,7 @@ func BitFlipper(byteIndex int, inByte byte) byte {
 		byteWithFlippedBit = inByte ^ 4
 	case 6:
 		byteWithFlippedBit = inByte ^ 2
-	case 7:
+	case 7: //! LSB
 		byteWithFlippedBit = inByte ^ 1
 	}
 	return byteWithFlippedBit
@@ -114,22 +114,30 @@ func LeftByteShift(shiftBy int, inByte byte) byte {
 	return shiftedLeftByte
 }
 
+// RightByteShift shifts inByte by the amount of the  argument shiftBy
+func RightByteShift(shiftBy int, inByte byte) byte {
+	shiftedRightByte := inByte >> shiftBy
+	return shiftedRightByte
+}
+
 // RandomBitFlip will flip just 1 bit in a random Byte
-func RandomBitFlip(inData []byte, numBitsToFlip int) []byte {
+func RandomBitFlip(inData []byte) []byte {
 	randByteIndex := mrand.Intn(len(inData) - 1)
 	tempRandByte := inData[randByteIndex]
+	tempRandByte = BitFlipper(mrand.Intn(7), tempRandByte)
+	inData[randByteIndex] = tempRandByte
 
-	// This is a byteshift
-	inData[randByteIndex] = tempRandByte << 1
+	return inData
+}
 
-	//Select random bit
-	//rndBitIndex := mrand.Intn(7//)
-	//tempBit := tempRandByte[ran//dBitIndex]
-
-	//flippedBit := ^randBit
-	//inData[randByte][randBit] = flippedBit
-	//TODO: Need to work on bit selection
-
+// RandomBitFlips flips a numBitsToFlip number of bits randomly
+func RandomBitFlips(inData []byte, numBitsToFlip int) []byte {
+	for i := 0; i < numBitsToFlip; i++ {
+		randByteIndex := mrand.Intn(len(inData) - 1)
+		tempRandByte := inData[randByteIndex]
+		tempRandByte = BitFlipper(mrand.Intn(7), tempRandByte)
+		inData[randByteIndex] = tempRandByte
+	}
 	return inData
 }
 
@@ -231,7 +239,11 @@ func main() {
 
 	//! Could make an additional arg to be passed depends on what is beingtotalNum := 2000
 	payload := string(RandomByteGenerator(totalNum))
-	println("Payload: ", payload)
+
+	payload2 := string(RandomBitFlip(RandomByteGenerator(totalNum)))
+
+	fmt.Println("Payload: ", payload)
+	fmt.Println("Payload_2: ", payload2)
 
 	//! This will be a command line input
 	targetProgram := "powershell.exe"
