@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math/bits"
 	mrand "math/rand"
 	"os"
 	"os/exec"
@@ -105,6 +106,9 @@ func BitFlipper(byteIndex int, inByte byte) byte {
 	case 7: //! LSB
 		byteWithFlippedBit = inByte ^ 1
 	}
+
+	// Could also use inByte |= (1 << position) with a bit different logic...
+
 	return byteWithFlippedBit
 }
 
@@ -168,6 +172,18 @@ func RandomByteFileGenerator(size int, outFileName string) {
 						less then length of random bytes to write`
 		fmt.Println(errorMessage)
 	}
+}
+
+// ByteFlipper flips all the bytes in the passed argument byte
+func ByteFlipper(byteToFlip byte) byte {
+	flippedBytes := ^byteToFlip
+	return flippedBytes
+}
+
+// ReverseByte reverses all the bits on the passed byteToReverse byte
+func ReverseByte(byteToReverse byte) byte {
+	reversedByte := bits.Reverse(uint(byteToReverse))
+	return byte(reversedByte)
 }
 
 // Generator()
@@ -272,6 +288,8 @@ func main() {
 	fmt.Println("Testing RandomFileGeneration")
 
 	RandomByteFileGenerator(1024, "randomFile")
+
+	ByteFlipper(0xAA)
 
 	//TODO: Being able to choose certain character sets
 	//TODO: Integrate known bad strings
