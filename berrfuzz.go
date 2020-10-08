@@ -1,10 +1,14 @@
+// BerrFuzz v.0001 ;)
+//        by
+// Manuel Berrueta
+
 package main
 
 import (
-	"bufio"
 	"crypto/rand"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math/bits"
 	mrand "math/rand"
@@ -28,24 +32,22 @@ const (
 
 // ReadFileBytes reads a file and returns bytes
 func ReadFileBytes(fileName string) ([]byte, error) {
-	inFile, err := os.OpenFile(fileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+	fileBytes, err := ioutil.ReadFile(fileName)
+	return fileBytes, err
+}
+
+func createCorpus(fileName string, originalBytes []byte) ([]byte, error) {
+	outFile, err := os.OpenFile(fileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
-		fmt.Println("inFile Read Error")
+		fmt.Println("outFile Open/Create Error")
 		return nil, err
 	}
-	defer inFile.Close()
+	defer outFile.Close()
 
-	inFileStats, errStats := inFile.Stat()
-	if errStats != nil {
-		fmt.Println("File Stats Read Error")
-		return nil, errStats
-	}
+	//TODO: Byte manipulation
+	fileBytes := make([]byte, len(originalBytes))
 
-	fileSize := inFileStats.Size()
-	fileBytes := make([]byte, fileSize)
-
-	inFileBuffer := bufio.NewReader(inFile)
-	_, err = inFileBuffer.Read(fileBytes)
+	outFile.Write(fileBytes)
 
 	return fileBytes, err
 }
@@ -87,6 +89,7 @@ func BitFlipper(byteIndex int, inByte byte) byte {
 		fmt.Scan(&byteIndex)
 	}
 
+	// Could also use inByte |= (1 << position) with a bit different logic...
 	var byteWithFlippedBit byte
 	switch byteIndex {
 	case 0: //! Flip MSB
@@ -106,8 +109,6 @@ func BitFlipper(byteIndex int, inByte byte) byte {
 	case 7: //! LSB
 		byteWithFlippedBit = inByte ^ 1
 	}
-
-	// Could also use inByte |= (1 << position) with a bit different logic...
 
 	return byteWithFlippedBit
 }
@@ -186,10 +187,6 @@ func ReverseByte(byteToReverse byte) byte {
 	return byte(reversedByte)
 }
 
-// Generator()
-// --- This will generate a random file, which will then be output to be used by the fuzzer
-//Mutator() This will mutate the existing file
-// --- Should eventually develop into something that allows us to select what to mutate
 // FileMutator is the start of a more complex function that will use different
 //             techniques to flip bits/bytes
 func FileMutator(fileBytes []byte) {
@@ -215,6 +212,11 @@ func main() {
 	fmt.Println(string(ColorGreen), "-=BerrFuzz", string(ColorReset))
 
 	cleanPtr := flag.Bool("clean", false, "Delete log file")
+	corpusName := ""
+	flag.StringVar(&corpusName, "i", "test.txt", "Input Corpus file")
+	targetName := ""
+	flag.StringVar(&targetName, "t", "powershell.exe", "Target program")
+
 	flag.Parse()
 
 	if *cleanPtr {
@@ -222,13 +224,14 @@ func main() {
 	}
 
 	//Testing Flags + Parameters
-	fmt.Println("flag.Args:", flag.Args()[0])
+	//fmt.Println("flag.Args()[0]:", flag.Args()[0])
+	fmt.Println("flag.Args:", flag.Args())
 	fmt.Println("Args:", os.Args)
 
-	//Add options to delete local log file
 	SetupLogger()
 
 	// OS Check run for running compatible commands
+	// WIP
 	switch runtime.GOOS {
 	case "windows":
 		//ver, err := syscall.GetVersion()
@@ -245,28 +248,26 @@ func main() {
 		fmt.Printf("Running on Mac OS '%s' | Ver: %s | Arch: %s | CPU(s): %d\n", "?", "verTBD", runtime.GOARCH, runtime.NumCPU())
 	}
 
-	fileBytes, err := ReadFileBytes("test.txt")
+	// Corpus intake
+	fileBytes, err := ReadFileBytes(corpusName)
 	if err != nil {
 		fmt.Println("Error reading files")
 	}
 	fmt.Println(string(fileBytes))
 
-	totalNum := 2000
+	totalNum := 10
 
 	//! Could make an additional arg to be passed depends on what is beingtotalNum := 2000
 	payload := string(RandomByteGenerator(totalNum))
 
 	payload2 := string(RandomBitFlip(RandomByteGenerator(totalNum)))
 
-	fmt.Println("Payload: ", payload)
-	fmt.Println("Payload_2: ", payload2)
+	//Testing payload generation
+	fmt.Println("\nPayload: ", payload)
+	fmt.Println("\nPayload_2: ", payload2)
 
-	//! This will be a command line input
-	targetProgram := "powershell.exe"
-
-	cmd := exec.Command(targetProgram)
-	//cmd := exec.Command(targetProgram, string(payload))
-	//cmd := exec.Command(targetProgram)
+	//cmd := exec.Command(*targetPtr)
+	cmd := exec.Command(targetName, string(payload))
 
 	//Output redirections stdout and stderr
 	//cmd.Stdout = os.Stdout
@@ -286,10 +287,7 @@ func main() {
 	log.Println("Done running command")
 
 	fmt.Println("Testing RandomFileGeneration")
-
 	RandomByteFileGenerator(1024, "randomFile")
-
-	ByteFlipper(0xAA)
 
 	//TODO: Being able to choose certain character sets
 	//TODO: Integrate known bad strings
