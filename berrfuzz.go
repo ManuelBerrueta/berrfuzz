@@ -30,6 +30,9 @@ const (
 	ColorReset        = "\u001b[0m"
 )
 
+// DEBUG  global var for debugging
+const DEBUG = true
+
 // ReadFileBytes reads a file and returns bytes
 func ReadFileBytes(fileName string) ([]byte, error) {
 	fileBytes, err := ioutil.ReadFile(fileName)
@@ -213,9 +216,14 @@ func main() {
 
 	cleanPtr := flag.Bool("clean", false, "Delete log file")
 	corpusName := ""
-	flag.StringVar(&corpusName, "i", "test.txt", "Input Corpus file")
+	flag.StringVar(&corpusName, "i", "", "Input Corpus file")
 	targetName := ""
 	flag.StringVar(&targetName, "t", "powershell.exe", "Target program")
+
+	payloadSizePtr := flag.Float64("s", 0.0, `Given a number N < 1.0 , operations 
+									will be done on N percent of the bytes.\n
+									Given a number N >= 1.0, operations will be
+									done on N many bytes\n`)
 
 	flag.Parse()
 
@@ -249,22 +257,53 @@ func main() {
 	}
 
 	// Corpus intake
-	fileBytes, err := ReadFileBytes(corpusName)
-	if err != nil {
-		fmt.Println("Error reading files")
+	corpusFileBytes := make([]byte, 0)
+	if corpusName != "" {
+		corpusFileBytes, err := ReadFileBytes(corpusName)
+		if err != nil {
+			fmt.Println("Error reading file: ", corpusName)
+			os.Exit(-1)
+		}
+		fmt.Println(string(corpusFileBytes))
 	}
-	fmt.Println(string(fileBytes))
 
-	totalNum := 10
+	payloadSize := 0
+	if *payloadSizePtr != 0.0 {
+		/* If payloadSizePtr is < 1.0 we should have an input file and we will
+		   calculate the size as a percentage of that file size */
+		if *payloadSizePtr < 1.0 && *payloadSizePtr > 0.0 {
+			//* Check if a filename is passed
+			if len(corpusFileBytes) == 0 {
+				fmt.Println("Error: Passed percentage but no input file!")
+				os.Exit(-1)
+			} else {
+				payloadSize = int(float64(len(corpusFileBytes)) * *payloadSizePtr)
+			}
+		} else if *payloadSizePtr >= 1.0 {
+			payloadSize = int(*payloadSizePtr)
+		} else {
+			fmt.Println("Payload size must be a positive number!")
+			os.Exit(-1)
+		}
+	} else {
+		//payloadSize = mrand.Intn(0xFFFFFFFF)
+		payloadSize = mrand.Intn(0x1fffffe8)
+	}
 
-	//! Could make an additional arg to be passed depends on what is beingtotalNum := 2000
-	payload := string(RandomByteGenerator(totalNum))
-
-	payload2 := string(RandomBitFlip(RandomByteGenerator(totalNum)))
+	if DEBUG {
+		fmt.Println("Randomly generated payload size: ", payloadSize)
+		payloadSize = 2000
+		fmt.Println("Debugging size: ", payloadSize)
+	}
+	//! Could make an additional arg to be passed depends on what is beingtotalNum
+	payload := string(RandomByteGenerator(payloadSize))
+	payload2 := string(RandomBitFlip(RandomByteGenerator(payloadSize)))
 
 	//Testing payload generation
-	fmt.Println("\nPayload: ", payload)
-	fmt.Println("\nPayload_2: ", payload2)
+	if DEBUG {
+		fmt.Println("\nPayload_2: ", payload2)
+		fmt.Println("\nPayload: ", payload)
+	}
 
 	//cmd := exec.Command(*targetPtr)
 	cmd := exec.Command(targetName, string(payload))
