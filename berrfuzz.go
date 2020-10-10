@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"math/bits"
 	mrand "math/rand"
 	"os"
 	"os/exec"
@@ -39,20 +38,36 @@ func ReadFileBytes(fileName string) ([]byte, error) {
 	return fileBytes, err
 }
 
-func createCorpus(fileName string, originalBytes []byte) ([]byte, error) {
+// MutateCorpus makes random changes to the bytes on the input file
+//func MutateCorpus(originalBytes []byte) ([]byte, error) {
+//
+//	//TODO: Byte manipulation
+//	//fileBytes := make([]byte, len(originalBytes))
+//	mutatedBytes :=
+//
+//	return fileBytes,
+//}
+
+// OutputCorpus write the new payload output file
+func OutputCorpus(fileName string, mutatedBytes []byte) bool {
 	outFile, err := os.OpenFile(fileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
 		fmt.Println("outFile Open/Create Error")
-		return nil, err
+		return false
 	}
 	defer outFile.Close()
 
-	//TODO: Byte manipulation
-	fileBytes := make([]byte, len(originalBytes))
+	numOfWrittenBytes, err := outFile.Write(mutatedBytes)
+	if err != nil {
+		fmt.Println("Corpus outFile Write Error")
+	}
 
-	outFile.Write(fileBytes)
+	if numOfWrittenBytes < len(mutatedBytes) {
+		fmt.Println("numOfWrittenBytes < len(mutatedBytes)")
+		return false
+	}
 
-	return fileBytes, err
+	return true
 }
 
 // SetupLogger sets up local log file for fuzzing output //TODO: Possibly make logfilename input
@@ -79,74 +94,6 @@ func RandomByteGenerator(size int) []byte {
 	}
 
 	return builtBytes
-}
-
-// BitFlipper will flip the byteIndex bit in argument inByte, where index 0 is the MSB
-func BitFlipper(byteIndex int, inByte byte) byte {
-	if byteIndex < 0 || byteIndex > 7 {
-		fmt.Println("Error: BitFlipper() requires a byteIndex in range of 0-7")
-	}
-
-	for byteIndex < 0 || byteIndex > 7 {
-		fmt.Printf("Enter byteIndex in range of 0-7: ")
-		fmt.Scan(&byteIndex)
-	}
-
-	// Could also use inByte |= (1 << position) with a bit different logic...
-	var byteWithFlippedBit byte
-	switch byteIndex {
-	case 0: //! Flip MSB
-		byteWithFlippedBit = inByte ^ 128
-	case 1:
-		byteWithFlippedBit = inByte ^ 64
-	case 2:
-		byteWithFlippedBit = inByte ^ 32
-	case 3:
-		byteWithFlippedBit = inByte ^ 16
-	case 4:
-		byteWithFlippedBit = inByte ^ 8
-	case 5:
-		byteWithFlippedBit = inByte ^ 4
-	case 6:
-		byteWithFlippedBit = inByte ^ 2
-	case 7: //! LSB
-		byteWithFlippedBit = inByte ^ 1
-	}
-
-	return byteWithFlippedBit
-}
-
-// LeftByteShift shifts inByte by the amount of the  argument shiftBy
-func LeftByteShift(shiftBy int, inByte byte) byte {
-	shiftedLeftByte := inByte << shiftBy
-	return shiftedLeftByte
-}
-
-// RightByteShift shifts inByte by the amount of the  argument shiftBy
-func RightByteShift(shiftBy int, inByte byte) byte {
-	shiftedRightByte := inByte >> shiftBy
-	return shiftedRightByte
-}
-
-// RandomBitFlip will flip just 1 bit in a random Byte
-func RandomBitFlip(inData []byte) []byte {
-	randByteIndex := mrand.Intn(len(inData) - 1)
-	tempRandByte := inData[randByteIndex]
-	tempRandByte = BitFlipper(mrand.Intn(7), tempRandByte)
-	inData[randByteIndex] = tempRandByte
-
-	return inData
-}
-
-// RandomBitFlips flips a numBitsToFlip number of bits randomly
-func RandomBitFlips(inData []byte, numBitsToFlip int) []byte {
-	for i := 0; i < numBitsToFlip; i++ {
-		randByteIndex := mrand.Intn(len(inData) - 1)
-		tempRandByte := inData[randByteIndex]
-		tempRandByte = BitFlipper(mrand.Intn(7), tempRandByte)
-		inData[randByteIndex] = tempRandByte
-	}
-	return inData
 }
 
 // RandomByteFileGenerator will create a file with random bytes
@@ -178,22 +125,10 @@ func RandomByteFileGenerator(size int, outFileName string) {
 	}
 }
 
-// ByteFlipper flips all the bytes in the passed argument byte
-func ByteFlipper(byteToFlip byte) byte {
-	flippedBytes := ^byteToFlip
-	return flippedBytes
-}
-
-// ReverseByte reverses all the bits on the passed byteToReverse byte
-func ReverseByte(byteToReverse byte) byte {
-	reversedByte := bits.Reverse(uint(byteToReverse))
-	return byte(reversedByte)
-}
-
 // FileMutator is the start of a more complex function that will use different
 //             techniques to flip bits/bytes
-func FileMutator(fileBytes []byte) {
-	numOfByteToFlip := 10
+func FileMutator(fileBytes []byte, numOfByteToFlip int) []byte {
+	//numOfByteToFlip := 10
 
 	//C
 	randByte := mrand.Intn(0xFFFFFFFF)
@@ -201,6 +136,7 @@ func FileMutator(fileBytes []byte) {
 	for i := 0; i < numOfByteToFlip; i++ {
 		fileBytes[mrand.Intn(len(fileBytes))-1] = byte(randByte)
 	}
+	return fileBytes
 }
 
 // CleanLog removes the log file that contains possible crashes and the input
@@ -218,7 +154,9 @@ func main() {
 	corpusName := ""
 	flag.StringVar(&corpusName, "i", "", "Input Corpus file")
 	targetName := ""
-	flag.StringVar(&targetName, "t", "powershell.exe", "Target program")
+	flag.StringVar(&targetName, "t", "", "Target program")
+	corpusPayloadName := ""
+	flag.StringVar(&corpusPayloadName, "c", "", "Name for the output payload file")
 
 	payloadSizePtr := flag.Float64("s", 0.0, `Given a number N < 1.0 , operations 
 									will be done on N percent of the bytes.\n
@@ -233,13 +171,13 @@ func main() {
 
 	//Testing Flags + Parameters
 	//fmt.Println("flag.Args()[0]:", flag.Args()[0])
-	fmt.Println("flag.Args:", flag.Args())
-	fmt.Println("Args:", os.Args)
 
 	SetupLogger()
 
 	// OS Check run for running compatible commands
 	// WIP
+	//OS := ""
+	pathPrefix := ""
 	switch runtime.GOOS {
 	case "windows":
 		//ver, err := syscall.GetVersion()
@@ -249,22 +187,28 @@ func main() {
 		//Major := int(ver & 0xFF)
 		//Minor := int(ver >> 8 & 0xFF)
 		//Build := int(ver >> 16)
+		//OS = "windows"
 		fmt.Printf("Running on Windows %d Build: %d | Arch: %s | CPU(s): %d\n", 0, 0, runtime.GOARCH, runtime.NumCPU()) //!WIP
+		pathPrefix = ".\\"
 	case "linux":
 		fmt.Printf("Running on Linux '%s' | Ver: %s | Arch: %s | CPU(s): %d\n", "Ubuntu/Fedora/Whatever", "verTBD", runtime.GOARCH, runtime.NumCPU())
+		//OS = "linux"
+		pathPrefix = "./"
 	case "darwin":
 		fmt.Printf("Running on Mac OS '%s' | Ver: %s | Arch: %s | CPU(s): %d\n", "?", "verTBD", runtime.GOARCH, runtime.NumCPU())
+		//OS = "darwin"
+		pathPrefix = "./"
 	}
 
 	// Corpus intake
 	corpusFileBytes := make([]byte, 0)
 	if corpusName != "" {
-		corpusFileBytes, err := ReadFileBytes(corpusName)
-		if err != nil {
+		var corpusErr error
+		corpusFileBytes, corpusErr = ReadFileBytes(corpusName)
+		if corpusErr != nil {
 			fmt.Println("Error reading file: ", corpusName)
 			os.Exit(-1)
 		}
-		fmt.Println(string(corpusFileBytes))
 	}
 
 	payloadSize := 0
@@ -290,23 +234,40 @@ func main() {
 		payloadSize = mrand.Intn(0x1fffffe8)
 	}
 
+	//Testing payload generation
 	if DEBUG {
 		fmt.Println("Randomly generated payload size: ", payloadSize)
 		payloadSize = 2000
 		fmt.Println("Debugging size: ", payloadSize)
-	}
-	//! Could make an additional arg to be passed depends on what is beingtotalNum
-	payload := string(RandomByteGenerator(payloadSize))
-	payload2 := string(RandomBitFlip(RandomByteGenerator(payloadSize)))
-
-	//Testing payload generation
-	if DEBUG {
+		payload := string(RandomByteGenerator(payloadSize))
+		payload2 := string(RandomBitFlip(RandomByteGenerator(payloadSize)))
 		fmt.Println("\nPayload_2: ", payload2)
 		fmt.Println("\nPayload: ", payload)
 	}
 
+	//Find target in path
+	path, err := exec.LookPath(targetName)
+	if err != nil {
+		fmt.Printf("Target program '%s', not found in path. Provide full path!", targetName)
+		os.Exit(-1)
+	}
+	targetName = path
+
+	mutatedCorpusBytes := FileMutator(corpusFileBytes, payloadSize)
+
+	//TODO: Error checking!
+	if corpusPayloadName == "" {
+		fmt.Println("No corpus input provided")
+	}
+	// File Payload Using Corpus
+	OutputCorpus(corpusPayloadName, mutatedCorpusBytes)
+
 	//cmd := exec.Command(*targetPtr)
-	cmd := exec.Command(targetName, string(payload))
+	//cmd := exec.Command(targetName, string(payload))
+
+	corpusPayloadName = pathPrefix + corpusPayloadName
+
+	cmd := exec.Command(targetName, corpusPayloadName)
 
 	//Output redirections stdout and stderr
 	//cmd.Stdout = os.Stdout
@@ -319,7 +280,8 @@ func main() {
 
 		log.Printf("-=-=####### Possible Crash:")
 		log.Printf("-=-=####### \tErr: %s", err.Error())
-		log.Printf("-=-=#######\t\tPayload @ Possible Crash:\n \"%s\"", payload)
+		//log.Printf("-=-=#######\t\tPayload @ Possible Crash:\n \"%s\"", payload)
+		//TODO: Create a dir Possible_Crashes, copy payload/payload file to it
 	}
 
 	fmt.Printf("Output of program: %s\n", string(output))
