@@ -39,20 +39,36 @@ func ReadFileBytes(fileName string) ([]byte, error) {
 	return fileBytes, err
 }
 
-func createCorpus(fileName string, originalBytes []byte) ([]byte, error) {
+// MutateCorpus makes random changes to the bytes on the input file
+//func MutateCorpus(originalBytes []byte) ([]byte, error) {
+//
+//	//TODO: Byte manipulation
+//	//fileBytes := make([]byte, len(originalBytes))
+//	mutatedBytes :=
+//
+//	return fileBytes,
+//}
+
+// OutputCorpus write the new payload output file
+func OutputCorpus(fileName string, mutatedBytes []byte) bool {
 	outFile, err := os.OpenFile(fileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
 		fmt.Println("outFile Open/Create Error")
-		return nil, err
+		return false
 	}
 	defer outFile.Close()
 
-	//TODO: Byte manipulation
-	fileBytes := make([]byte, len(originalBytes))
+	numOfWrittenBytes, err := outFile.Write(mutatedBytes)
+	if err != nil {
+		fmt.Println("Corpus outFile Write Error")
+	}
 
-	outFile.Write(fileBytes)
+	if numOfWrittenBytes < len(mutatedBytes) {
+		fmt.Println("numOfWrittenBytes < len(mutatedBytes)")
+		return false
+	}
 
-	return fileBytes, err
+	return true
 }
 
 // SetupLogger sets up local log file for fuzzing output //TODO: Possibly make logfilename input
@@ -192,8 +208,8 @@ func ReverseByte(byteToReverse byte) byte {
 
 // FileMutator is the start of a more complex function that will use different
 //             techniques to flip bits/bytes
-func FileMutator(fileBytes []byte) {
-	numOfByteToFlip := 10
+func FileMutator(fileBytes []byte, numOfByteToFlip int) []byte {
+	//numOfByteToFlip := 10
 
 	//C
 	randByte := mrand.Intn(0xFFFFFFFF)
@@ -201,6 +217,7 @@ func FileMutator(fileBytes []byte) {
 	for i := 0; i < numOfByteToFlip; i++ {
 		fileBytes[mrand.Intn(len(fileBytes))-1] = byte(randByte)
 	}
+	return fileBytes
 }
 
 // CleanLog removes the log file that contains possible crashes and the input
@@ -218,7 +235,9 @@ func main() {
 	corpusName := ""
 	flag.StringVar(&corpusName, "i", "", "Input Corpus file")
 	targetName := ""
-	flag.StringVar(&targetName, "t", "powershell.exe", "Target program")
+	flag.StringVar(&targetName, "t", "", "Target program")
+	corpusPayloadName := ""
+	flag.StringVar(&corpusPayloadName, "c", "", "Name for the output payload file")
 
 	payloadSizePtr := flag.Float64("s", 0.0, `Given a number N < 1.0 , operations 
 									will be done on N percent of the bytes.\n
@@ -240,6 +259,8 @@ func main() {
 
 	// OS Check run for running compatible commands
 	// WIP
+	//OS := ""
+	pathPrefix := ""
 	switch runtime.GOOS {
 	case "windows":
 		//ver, err := syscall.GetVersion()
@@ -249,22 +270,29 @@ func main() {
 		//Major := int(ver & 0xFF)
 		//Minor := int(ver >> 8 & 0xFF)
 		//Build := int(ver >> 16)
+		//OS = "windows"
 		fmt.Printf("Running on Windows %d Build: %d | Arch: %s | CPU(s): %d\n", 0, 0, runtime.GOARCH, runtime.NumCPU()) //!WIP
+		pathPrefix = ".\\"
 	case "linux":
 		fmt.Printf("Running on Linux '%s' | Ver: %s | Arch: %s | CPU(s): %d\n", "Ubuntu/Fedora/Whatever", "verTBD", runtime.GOARCH, runtime.NumCPU())
+		//OS = "linux"
+		pathPrefix = "./"
 	case "darwin":
 		fmt.Printf("Running on Mac OS '%s' | Ver: %s | Arch: %s | CPU(s): %d\n", "?", "verTBD", runtime.GOARCH, runtime.NumCPU())
+		//OS = "darwin"
+		pathPrefix = "./"
 	}
 
 	// Corpus intake
 	corpusFileBytes := make([]byte, 0)
 	if corpusName != "" {
-		corpusFileBytes, err := ReadFileBytes(corpusName)
-		if err != nil {
+		var corpusErr error
+		corpusFileBytes, corpusErr = ReadFileBytes(corpusName)
+		if corpusErr != nil {
 			fmt.Println("Error reading file: ", corpusName)
 			os.Exit(-1)
 		}
-		fmt.Println(string(corpusFileBytes))
+		//fmt.Println(string(corpusFileBytes))
 	}
 
 	payloadSize := 0
@@ -305,8 +333,29 @@ func main() {
 		fmt.Println("\nPayload: ", payload)
 	}
 
+	//Find target in path
+	path, err := exec.LookPath(targetName)
+	if err != nil {
+		fmt.Printf("Target program '%s', not found in path. Provide full path!", targetName)
+		os.Exit(-1)
+	}
+	targetName = path
+
+	mutatedCorpusBytes := FileMutator(corpusFileBytes, payloadSize)
+
+	//TODO: Error checking!
+	if corpusPayloadName == "" {
+		fmt.Println("No corpus input provided")
+	}
+	// File Payload Using Corpus
+	OutputCorpus(corpusPayloadName, mutatedCorpusBytes)
+
 	//cmd := exec.Command(*targetPtr)
-	cmd := exec.Command(targetName, string(payload))
+	//cmd := exec.Command(targetName, string(payload))
+
+	corpusPayloadName = pathPrefix + corpusPayloadName
+
+	cmd := exec.Command(targetName, corpusPayloadName)
 
 	//Output redirections stdout and stderr
 	//cmd.Stdout = os.Stdout
