@@ -27,7 +27,7 @@ const (
 )
 
 // DEBUG  global var for debugging
-const DEBUG = true
+const DEBUG = false
 
 // checkTargetPath verifies or attempts to find the path of the target binary
 func checkTargetPath(targetName string) string {
@@ -109,13 +109,14 @@ func main() {
 
 	targetName = checkTargetPath(targetName) //TODO Move closer to the top
 
-	mutatedCorpusBytes := FileMutator(corpusFileBytes, payloadSize)
+	//mutatedCorpusBytes := FileMutator(corpusFileBytes, payloadSize)
 
 	//TODO: Error checking!
 	if corpusPayloadName == "" {
 		fmt.Println("No corpus input provided")
 	} else {
 		// File Payload Using Corpus
+		mutatedCorpusBytes := FileMutator(corpusFileBytes, payloadSize)
 		OutputCorpus(corpusPayloadName, mutatedCorpusBytes)
 		corpusPayloadName = pathPrefix + corpusPayloadName
 	}
@@ -127,6 +128,8 @@ func main() {
 	} else {
 		payload = corpusPayloadName
 	}
+
+	payload = "<< " + payload
 
 	cmd := exec.Command(targetName, payload)
 
