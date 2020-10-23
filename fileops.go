@@ -25,6 +25,20 @@ func ReadFileBytes(fileName string) ([]byte, error) {
 //	return fileBytes,
 //}
 
+// CorpusIntake takes the file name for the input file, reads file as bytes to be used for fuzzing
+func CorpusIntake(corpusName string) []byte {
+	corpusFileBytes := make([]byte, 0)
+	if corpusName != "" {
+		var corpusErr error
+		corpusFileBytes, corpusErr = ReadFileBytes(corpusName)
+		if corpusErr != nil {
+			fmt.Println("Error reading file: ", corpusName)
+			os.Exit(-1)
+		}
+	}
+	return corpusFileBytes
+}
+
 // OutputCorpus write the new payload output file
 func OutputCorpus(fileName string, mutatedBytes []byte) bool {
 	outFile, err := os.OpenFile(fileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
@@ -96,10 +110,11 @@ func FileMutator(fileBytes []byte, numOfByteToFlip int) []byte {
 	//numOfByteToFlip := 10
 
 	//C
-	randByte := mrand.Intn(0xFFFFFFFF)
+	//randByte := mrand.Intn(0xFFFFFFFF)
+	randByte := mrand.Intn(0xFF)
 
 	for i := 0; i < numOfByteToFlip; i++ {
-		fileBytes[mrand.Intn(len(fileBytes))-1] = byte(randByte)
+		fileBytes[mrand.Intn(len(fileBytes)-1)] = byte(randByte)
 	}
 	return fileBytes
 }

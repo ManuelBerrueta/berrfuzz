@@ -11,6 +11,7 @@ import (
 	mrand "math/rand"
 	"os"
 	"os/exec"
+	"strconv"
 )
 
 // Color for color for your visual pleasure :)
@@ -29,8 +30,8 @@ const (
 // DEBUG  global var for debugging
 const DEBUG = false
 
-// checkTargetPath verifies or attempts to find the path of the target binary
-func checkTargetPath(targetName string) string {
+// CheckTargetPath verifies or attempts to find the path of the target binary
+func CheckTargetPath(targetName string) string {
 	path, err := exec.LookPath(targetName)
 	if err != nil {
 		fmt.Printf("Target program '%s', not found in path. Provide full path!", targetName)
@@ -39,11 +40,87 @@ func checkTargetPath(targetName string) string {
 	return path
 }
 
+// FileGenerator takes care of generating fuzzed input files
+func FileGenerator(inputCorpus string, numOfFiles int, mutationType string, excludedBytes string, payloadSizeFl float64) {
+	//TODO: Logic for File Generator
+
+	//TODO: Extensions support, to append an extension to the outfilename
+
+	nameSchem := "fuzzInputFile"
+
+	//! We do not exclude any bytes from fuzzing
+	if excludedBytes != "" {
+		//TODO: we keep this bytes in a temp structure or use some logic to exclude them
+	}
+
+	corpusFileBytes := make([]byte, 0)
+	originalBytes := make([]byte, 0)
+	if inputCorpus != "" {
+		corpusFileBytes = CorpusIntake(inputCorpus)
+		originalBytes = corpusFileBytes
+	}
+
+	payloadSize := CalculatePayloadSize(payloadSizeFl, corpusFileBytes)
+
+	//! Create files
+	for i := 0; i < numOfFiles; i++ {
+		if len(originalBytes) != 0 {
+			corpusFileBytes = originalBytes
+			// Byte mutation
+			mutatedBytes := FileMutator(corpusFileBytes, payloadSize)
+			OutputCorpus(nameSchem+strconv.Itoa(i), mutatedBytes)
+
+		} else {
+
+			RandomByteFileGenerator(payloadSize, nameSchem+strconv.Itoa(i))
+		}
+	}
+
+	fmt.Println("Finished Creating Files!")
+	os.Exit(0)
+}
+
+// CalculatePayloadSize takes the payloadSizePtr and figures out the size if percentage
+func CalculatePayloadSize(payloadSizeFl float64, corpusFileBytes []byte) int {
+	payloadSize := 0
+	if payloadSizeFl != 0.0 {
+		/* If payloadSizePtr is < 1.0 we should have an input file and we will
+		   calculate the size as a percentage of that file size */
+		if payloadSizeFl < 1.0 && payloadSizeFl > 0.0 {
+			//* Check if a filename is passed
+			if len(corpusFileBytes) == 0 {
+				fmt.Println("Error: Passed percentage but no input file!")
+				os.Exit(-1)
+			} else {
+				payloadSize = int(float64(len(corpusFileBytes)) * payloadSizeFl)
+			}
+		} else if payloadSizeFl >= 1.0 {
+			payloadSize = int(payloadSizeFl)
+		} else {
+			fmt.Println("Payload size must be a positive number!")
+			os.Exit(-1)
+		}
+	} else if len(corpusFileBytes) != 0 {
+		payloadSize = mrand.Intn(len(corpusFileBytes))
+	} else {
+		payloadSize = mrand.Intn(0x1fffffe8)
+	}
+	return payloadSize
+}
+
 func main() {
 	fmt.Println(string(ColorGreen), "-=BerrFuzz", string(ColorReset))
 
-	cliPtr := flag.Bool("cli", false, "Use this flag for command line input only")
-	cleanPtr := flag.Bool("clean", false, "Delete log file")
+	cliPtr := flag.Bool("cli", false, "Use this flag for command line input as a payload")
+	cleanPtr := flag.Bool("clean", false, "Use this flag to delete the log file and start with a fresh one")
+	generatorPtr := flag.Bool("g", false, "Use this flag to put BerrFuzz in File Generation mode. This will generate files files")
+	numTargerPtr := flag.Int("n", 0, `Use this flag to specify the number of iterations or number of files if used with -g flag. This flag
+							 also requires flag 'i' and an input file.`)
+	mutationTypePtr := flag.String("m", "rand", `Use this flag to specify the mutation type you would like to use. The
+										The default is rand`)
+	exludeBytesPtr := flag.String("e", "", `Use this flag to exclude byte locations within the payload from being fuzzed 
+									(i.e. header bytes). Examples of supported use:\n\tList: -e "0 1 2 7" -This will exclude bytes
+									 0 1 2 and 7.\n\tRange: -e "0-4" - This will exclude bytes 0 through 4.`)
 	corpusName := ""
 	flag.StringVar(&corpusName, "i", "", "Input Corpus file")
 	targetName := ""
@@ -55,6 +132,13 @@ func main() {
 									Given a number N >= 1.0, operations will be
 									done on N many bytes\n`)
 	flag.Parse()
+
+	//TODO: Consider a mode selector
+	//TODO: Logic for File Generator
+	//! If corpusName is empty string, then we will generate random bytes for files
+	if corpusName != "" && *numTargerPtr != 0 && *generatorPtr {
+		FileGenerator(corpusName, *numTargerPtr, *mutationTypePtr, *exludeBytesPtr, *payloadSizePtr)
+	}
 
 	SetupLogger(cleanPtr)
 
@@ -107,7 +191,7 @@ func main() {
 		fmt.Println("\nPayload: ", payload)
 	}
 
-	targetName = checkTargetPath(targetName) //TODO Move closer to the top
+	targetName = CheckTargetPath(targetName) //TODO Move closer to the top
 
 	//mutatedCorpusBytes := FileMutator(corpusFileBytes, payloadSize)
 
