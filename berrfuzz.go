@@ -5,15 +5,13 @@
 package main
 
 import (
-	"crypto/rand"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	mrand "math/rand"
 	"os"
 	"os/exec"
-	"runtime"
+	"strconv"
 )
 
 // Color for color for your visual pleasure :)
@@ -30,175 +28,121 @@ const (
 )
 
 // DEBUG  global var for debugging
-const DEBUG = true
+const DEBUG = false
 
-// ReadFileBytes reads a file and returns bytes
-func ReadFileBytes(fileName string) ([]byte, error) {
-	fileBytes, err := ioutil.ReadFile(fileName)
-	return fileBytes, err
-}
-
-// MutateCorpus makes random changes to the bytes on the input file
-//func MutateCorpus(originalBytes []byte) ([]byte, error) {
-//
-//	//TODO: Byte manipulation
-//	//fileBytes := make([]byte, len(originalBytes))
-//	mutatedBytes :=
-//
-//	return fileBytes,
-//}
-
-// OutputCorpus write the new payload output file
-func OutputCorpus(fileName string, mutatedBytes []byte) bool {
-	outFile, err := os.OpenFile(fileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+// CheckTargetPath verifies or attempts to find the path of the target binary
+func CheckTargetPath(targetName string) string {
+	path, err := exec.LookPath(targetName)
 	if err != nil {
-		fmt.Println("outFile Open/Create Error")
-		return false
-	}
-	defer outFile.Close()
-
-	numOfWrittenBytes, err := outFile.Write(mutatedBytes)
-	if err != nil {
-		fmt.Println("Corpus outFile Write Error")
-	}
-
-	if numOfWrittenBytes < len(mutatedBytes) {
-		fmt.Println("numOfWrittenBytes < len(mutatedBytes)")
-		return false
-	}
-
-	return true
-}
-
-// SetupLogger sets up local log file for fuzzing output //TODO: Possibly make logfilename input
-func SetupLogger() {
-	logFile, err := os.OpenFile("BerrFuzz-log.txt", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
-	if err != nil {
-		log.Fatal(err)
-	}
-	//defer logFile.Close()
-	logFile.WriteString("\n")
-	log.SetOutput(logFile)
-	log.Printf("-=-==-===-====Start of New Fuzz Test")
-}
-
-// RandomByteGenerator generates random bytes of passed in size and returns []byte
-func RandomByteGenerator(size int) []byte {
-	builtBytes := make([]byte, size)
-
-	_, err := rand.Read(builtBytes)
-
-	if err != nil {
-		fmt.Println("Error creating random bytes: ", err)
+		fmt.Printf("Target program '%s', not found in path. Provide full path!", targetName)
 		os.Exit(-1)
 	}
-
-	return builtBytes
+	return path
 }
 
-// RandomByteFileGenerator will create a file with random bytes
-func RandomByteFileGenerator(size int, outFileName string) {
-	builtBytes := make([]byte, size)
-	_, err := rand.Read(builtBytes)
+// FileGenerator takes care of generating fuzzed input files
+func FileGenerator(inputCorpus string, numOfFiles int, mutationType string, excludedBytes string, payloadSizeFl float64) {
+	//TODO: Logic for File Generator
 
-	if err != nil {
-		fmt.Println("Error creating random bytes: ", err)
-		os.Exit(-1)
+	//TODO: Extensions support, to append an extension to the outfilename
+
+	nameSchem := "fuzzInputFile"
+
+	//! We do not exclude any bytes from fuzzing
+	if excludedBytes != "" {
+		//TODO: we keep this bytes in a temp structure or use some logic to exclude them
 	}
 
-	outFile, err := os.OpenFile(outFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
-	if err != nil {
-		fmt.Println("outFile for RandomByteFileGenerator Failed to open")
-		os.Exit(-1)
+	corpusFileBytes := make([]byte, 0)
+	originalBytes := make([]byte, 0)
+	if inputCorpus != "" {
+		corpusFileBytes = CorpusIntake(inputCorpus)
+		originalBytes = corpusFileBytes
 	}
 
-	numByteWritten, err := outFile.Write(builtBytes)
-	if err != nil {
-		fmt.Println("outFile for RandomByteFileGenerator Failed to write bytes")
-		os.Exit(-1)
+	payloadSize := CalculatePayloadSize(payloadSizeFl, corpusFileBytes)
+
+	//! Create files
+	for i := 0; i < numOfFiles; i++ {
+		if len(originalBytes) != 0 {
+			corpusFileBytes = originalBytes
+			// Byte mutation
+			mutatedBytes := FileMutator(corpusFileBytes, payloadSize)
+			OutputCorpus(nameSchem+strconv.Itoa(i), mutatedBytes)
+
+		} else {
+
+			RandomByteFileGenerator(payloadSize, nameSchem+strconv.Itoa(i))
+		}
 	}
 
-	if numByteWritten < len(builtBytes) {
-		errorMessage := `Bytes written to outFile RandomByteFileGenerator
-						less then length of random bytes to write`
-		fmt.Println(errorMessage)
-	}
+	fmt.Println("Finished Creating Files!")
+	os.Exit(0)
 }
 
-// FileMutator is the start of a more complex function that will use different
-//             techniques to flip bits/bytes
-func FileMutator(fileBytes []byte, numOfByteToFlip int) []byte {
-	//numOfByteToFlip := 10
-
-	//C
-	randByte := mrand.Intn(0xFFFFFFFF)
-
-	for i := 0; i < numOfByteToFlip; i++ {
-		fileBytes[mrand.Intn(len(fileBytes))-1] = byte(randByte)
+// CalculatePayloadSize takes the payloadSizePtr and figures out the size if percentage
+func CalculatePayloadSize(payloadSizeFl float64, corpusFileBytes []byte) int {
+	payloadSize := 0
+	if payloadSizeFl != 0.0 {
+		/* If payloadSizePtr is < 1.0 we should have an input file and we will
+		   calculate the size as a percentage of that file size */
+		if payloadSizeFl < 1.0 && payloadSizeFl > 0.0 {
+			//* Check if a filename is passed
+			if len(corpusFileBytes) == 0 {
+				fmt.Println("Error: Passed percentage but no input file!")
+				os.Exit(-1)
+			} else {
+				payloadSize = int(float64(len(corpusFileBytes)) * payloadSizeFl)
+			}
+		} else if payloadSizeFl >= 1.0 {
+			payloadSize = int(payloadSizeFl)
+		} else {
+			fmt.Println("Payload size must be a positive number!")
+			os.Exit(-1)
+		}
+	} else if len(corpusFileBytes) != 0 {
+		payloadSize = mrand.Intn(len(corpusFileBytes))
+	} else {
+		payloadSize = mrand.Intn(0x1fffffe8)
 	}
-	return fileBytes
-}
-
-// CleanLog removes the log file that contains possible crashes and the input
-func CleanLog() {
-	err := os.Remove("BerrFuzz-log.txt")
-	if err != nil {
-		fmt.Println("Failed to delete log file")
-	}
+	return payloadSize
 }
 
 func main() {
 	fmt.Println(string(ColorGreen), "-=BerrFuzz", string(ColorReset))
 
-	cleanPtr := flag.Bool("clean", false, "Delete log file")
+	cliPtr := flag.Bool("cli", false, "Use this flag for command line input as a payload")
+	cleanPtr := flag.Bool("clean", false, "Use this flag to delete the log file and start with a fresh one")
+	generatorPtr := flag.Bool("g", false, "Use this flag to put BerrFuzz in File Generation mode. This will generate files files")
+	numTargerPtr := flag.Int("n", 0, `Use this flag to specify the number of iterations or number of files if used with -g flag. This flag
+							 also requires flag 'i' and an input file.`)
+	mutationTypePtr := flag.String("m", "rand", `Use this flag to specify the mutation type you would like to use. The
+										The default is rand`)
+	exludeBytesPtr := flag.String("e", "", `Use this flag to exclude byte locations within the payload from being fuzzed 
+									(i.e. header bytes). Examples of supported use:\n\tList: -e "0 1 2 7" -This will exclude bytes
+									 0 1 2 and 7.\n\tRange: -e "0-4" - This will exclude bytes 0 through 4.`)
 	corpusName := ""
 	flag.StringVar(&corpusName, "i", "", "Input Corpus file")
 	targetName := ""
 	flag.StringVar(&targetName, "t", "", "Target program")
 	corpusPayloadName := ""
 	flag.StringVar(&corpusPayloadName, "c", "", "Name for the output payload file")
-
 	payloadSizePtr := flag.Float64("s", 0.0, `Given a number N < 1.0 , operations 
 									will be done on N percent of the bytes.\n
 									Given a number N >= 1.0, operations will be
 									done on N many bytes\n`)
-
 	flag.Parse()
 
-	if *cleanPtr {
-		CleanLog()
+	//TODO: Consider a mode selector
+	//TODO: Logic for File Generator
+	//! If corpusName is empty string, then we will generate random bytes for files
+	if corpusName != "" && *numTargerPtr != 0 && *generatorPtr {
+		FileGenerator(corpusName, *numTargerPtr, *mutationTypePtr, *exludeBytesPtr, *payloadSizePtr)
 	}
 
-	//Testing Flags + Parameters
-	//fmt.Println("flag.Args()[0]:", flag.Args()[0])
+	SetupLogger(cleanPtr)
 
-	SetupLogger()
-
-	// OS Check run for running compatible commands
-	// WIP
-	//OS := ""
-	pathPrefix := ""
-	switch runtime.GOOS {
-	case "windows":
-		//ver, err := syscall.GetVersion()
-		//if err != nil {
-		//	panic(err)
-		//}
-		//Major := int(ver & 0xFF)
-		//Minor := int(ver >> 8 & 0xFF)
-		//Build := int(ver >> 16)
-		//OS = "windows"
-		fmt.Printf("Running on Windows %d Build: %d | Arch: %s | CPU(s): %d\n", 0, 0, runtime.GOARCH, runtime.NumCPU()) //!WIP
-		pathPrefix = ".\\"
-	case "linux":
-		fmt.Printf("Running on Linux '%s' | Ver: %s | Arch: %s | CPU(s): %d\n", "Ubuntu/Fedora/Whatever", "verTBD", runtime.GOARCH, runtime.NumCPU())
-		//OS = "linux"
-		pathPrefix = "./"
-	case "darwin":
-		fmt.Printf("Running on Mac OS '%s' | Ver: %s | Arch: %s | CPU(s): %d\n", "?", "verTBD", runtime.GOARCH, runtime.NumCPU())
-		//OS = "darwin"
-		pathPrefix = "./"
-	}
+	pathPrefix := OSCheck()
 
 	// Corpus intake
 	corpusFileBytes := make([]byte, 0)
@@ -210,6 +154,8 @@ func main() {
 			os.Exit(-1)
 		}
 	}
+
+	//TODO: This is only considering the case where we have an input file, what if we want to shove input to a program
 
 	payloadSize := 0
 	if *payloadSizePtr != 0.0 {
@@ -245,29 +191,31 @@ func main() {
 		fmt.Println("\nPayload: ", payload)
 	}
 
-	//Find target in path
-	path, err := exec.LookPath(targetName)
-	if err != nil {
-		fmt.Printf("Target program '%s', not found in path. Provide full path!", targetName)
-		os.Exit(-1)
-	}
-	targetName = path
+	targetName = CheckTargetPath(targetName) //TODO Move closer to the top
 
-	mutatedCorpusBytes := FileMutator(corpusFileBytes, payloadSize)
+	//mutatedCorpusBytes := FileMutator(corpusFileBytes, payloadSize)
 
 	//TODO: Error checking!
 	if corpusPayloadName == "" {
 		fmt.Println("No corpus input provided")
+	} else {
+		// File Payload Using Corpus
+		mutatedCorpusBytes := FileMutator(corpusFileBytes, payloadSize)
+		OutputCorpus(corpusPayloadName, mutatedCorpusBytes)
+		corpusPayloadName = pathPrefix + corpusPayloadName
 	}
-	// File Payload Using Corpus
-	OutputCorpus(corpusPayloadName, mutatedCorpusBytes)
 
-	//cmd := exec.Command(*targetPtr)
-	//cmd := exec.Command(targetName, string(payload))
+	payload := ""
 
-	corpusPayloadName = pathPrefix + corpusPayloadName
+	if *cliPtr {
+		payload = string(RandomByteGenerator(payloadSize))
+	} else {
+		payload = corpusPayloadName
+	}
 
-	cmd := exec.Command(targetName, corpusPayloadName)
+	payload = "<< " + payload
+
+	cmd := exec.Command(targetName, payload)
 
 	//Output redirections stdout and stderr
 	//cmd.Stdout = os.Stdout
@@ -286,9 +234,6 @@ func main() {
 
 	fmt.Printf("Output of program: %s\n", string(output))
 	log.Println("Done running command")
-
-	fmt.Println("Testing RandomFileGeneration")
-	RandomByteFileGenerator(1024, "randomFile")
 
 	//TODO: Being able to choose certain character sets
 	//TODO: Integrate known bad strings
