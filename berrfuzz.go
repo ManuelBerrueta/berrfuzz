@@ -41,7 +41,7 @@ func CheckTargetPath(targetName string) string {
 }
 
 // FileGenerator takes care of generating fuzzed input files
-func FileGenerator(inputCorpus string, numOfFiles int, mutationType string, excludedBytes string, payloadSizeFl float64) {
+func FileGenerator(inputCorpus string, numOfFiles int, mutationType string, excludedBytes string, payloadSizeFl float64, useOffset bool, offset uint, replace bool) {
 	//TODO: Logic for File Generator
 
 	//TODO: Extensions support, to append an extension to the outfilename
@@ -67,7 +67,31 @@ func FileGenerator(inputCorpus string, numOfFiles int, mutationType string, excl
 		if len(originalBytes) != 0 {
 			corpusFileBytes = originalBytes
 			// Byte mutation
-			mutatedBytes := FileMutator(corpusFileBytes, payloadSize)
+
+			//TODO: Select mutation type
+			var mutatedBytes []byte
+			switch mutationType {
+			case "":
+				fallthrough
+			case "rand":
+				if useOffset == false {
+					mutatedBytes = FileMutator(corpusFileBytes, payloadSize)
+				} else {
+					//todo: create random bytes
+					if replace {
+						//todo: here we overwrite payloadsize original bytes
+					} else {
+						//todo: here we concatenate the payload with the original bytes
+					}
+				}
+			case "input":
+				//todo: this is the case where a payload is passed
+			case "keyTarget":
+				//todo: this is the case where we put a byte pattern in the file as our target
+			}
+
+			//TODO: Here we put together file exluded bytes
+
 			OutputCorpus(nameSchem+strconv.Itoa(i), mutatedBytes)
 
 		} else {
@@ -115,12 +139,12 @@ func main() {
 	cleanPtr := flag.Bool("clean", false, "Use this flag to delete the log file and start with a fresh one")
 	generatorPtr := flag.Bool("g", false, "Use this flag to put BerrFuzz in File Generation mode. This will generate files files")
 	numTargerPtr := flag.Int("n", 0, `Use this flag to specify the number of iterations or number of files if used with -g flag. This flag
-							 also requires flag 'i' and an input file.`)
+							 also requires flag 'i' and an input file`)
 	mutationTypePtr := flag.String("m", "rand", `Use this flag to specify the mutation type you would like to use. The
 										The default is rand`)
 	exludeBytesPtr := flag.String("e", "", `Use this flag to exclude byte locations within the payload from being fuzzed 
 									(i.e. header bytes). Examples of supported use:\n\tList: -e "0 1 2 7" -This will exclude bytes
-									 0 1 2 and 7.\n\tRange: -e "0-4" - This will exclude bytes 0 through 4.`)
+									 0 1 2 and 7.\n\tRange: -e "0-4" - This will exclude bytes 0 through 4`)
 	corpusName := ""
 	flag.StringVar(&corpusName, "i", "", "Input Corpus file")
 	targetName := ""
@@ -131,13 +155,17 @@ func main() {
 									will be done on N percent of the bytes.\n
 									Given a number N >= 1.0, operations will be
 									done on N many bytes\n`)
+	replacePtr := flag.Bool("r", false, "Replace bytes with the payload rather than inserting the bytes")
+	useOffsetPtr := flag.Bool("useoffset", false, "Tells BerrFuzz that you would like to insert the payload at a certain offset. Use with -o <int> flag for offset")
+	offsetPtr := flag.Uint("o", 0, "Tells BerrFuzz what offset to insert the payload. This must be used in conjunction with the useoffset flag")
+
 	flag.Parse()
 
 	//TODO: Consider a mode selector
 	//TODO: Logic for File Generator
 	//! If corpusName is empty string, then we will generate random bytes for files
 	if corpusName != "" && *numTargerPtr != 0 && *generatorPtr {
-		FileGenerator(corpusName, *numTargerPtr, *mutationTypePtr, *exludeBytesPtr, *payloadSizePtr)
+		FileGenerator(corpusName, *numTargerPtr, *mutationTypePtr, *exludeBytesPtr, *payloadSizePtr, *useOffsetPtr, *offsetPtr, *replacePtr)
 	}
 
 	SetupLogger(cleanPtr)
@@ -180,16 +208,7 @@ func main() {
 		payloadSize = mrand.Intn(0x1fffffe8)
 	}
 
-	//Testing payload generation
-	if DEBUG {
-		fmt.Println("Randomly generated payload size: ", payloadSize)
-		payloadSize = 2000
-		fmt.Println("Debugging size: ", payloadSize)
-		payload := string(RandomByteGenerator(payloadSize))
-		payload2 := string(RandomBitFlip(RandomByteGenerator(payloadSize)))
-		fmt.Println("\nPayload_2: ", payload2)
-		fmt.Println("\nPayload: ", payload)
-	}
+	//! Harnessing Code
 
 	targetName = CheckTargetPath(targetName) //TODO Move closer to the top
 
@@ -239,4 +258,15 @@ func main() {
 	//TODO: Integrate known bad strings
 	//TODO: Possibly integrate search for known bad functions
 	//TODO: Payload can be an optional input
+
+	//Testing payload generation
+	if DEBUG {
+		fmt.Println("Randomly generated payload size: ", payloadSize)
+		payloadSize = 2000
+		fmt.Println("Debugging size: ", payloadSize)
+		payload := string(RandomByteGenerator(payloadSize))
+		payload2 := string(RandomBitFlip(RandomByteGenerator(payloadSize)))
+		fmt.Println("\nPayload_2: ", payload2)
+		fmt.Println("\nPayload: ", payload)
+	}
 }
