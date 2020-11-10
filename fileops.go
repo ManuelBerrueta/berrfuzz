@@ -25,6 +25,34 @@ func ReadFileBytes(fileName string) ([]byte, error) {
 //	return fileBytes,
 //}
 
+// CalculatePayloadSize takes the payloadSizePtr and figures out the size if percentage
+func CalculatePayloadSize(payloadSizeFl float64, corpusFileBytes []byte) int {
+	payloadSize := 0
+	if payloadSizeFl != 0.0 {
+		/* If payloadSizePtr is < 1.0 we should have an input file and we will
+		   calculate the size as a percentage of that file size */
+		if payloadSizeFl < 1.0 && payloadSizeFl > 0.0 {
+			//* Check if a filename is passed
+			if len(corpusFileBytes) == 0 {
+				fmt.Println("Error: Passed percentage but no input file!")
+				os.Exit(-1)
+			} else {
+				payloadSize = int(float64(len(corpusFileBytes)) * payloadSizeFl)
+			}
+		} else if payloadSizeFl >= 1.0 {
+			payloadSize = int(payloadSizeFl)
+		} else {
+			fmt.Println("Payload size must be a positive number!")
+			os.Exit(-1)
+		}
+	} else if len(corpusFileBytes) != 0 {
+		payloadSize = mrand.Intn(len(corpusFileBytes))
+	} else {
+		payloadSize = mrand.Intn(0x1fffffe8)
+	}
+	return payloadSize
+}
+
 // CorpusIntake takes the file name for the input file, reads file as bytes to be used for fuzzing
 func CorpusIntake(corpusName string) []byte {
 	corpusFileBytes := make([]byte, 0)

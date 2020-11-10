@@ -3,8 +3,11 @@ BerrFuzz is a binary fuzzer. This is different from something like AFL in that i
 
 It is currently in its infancy stage!
 
-##Example Use
+## Example Use
 ```bash
 berrfuzz -i <inputFile> -n 3 -g
 ```
 This is a simple generation of 3 files that have randomly mutated bytes based on the input file.
+
+## File Generator Mode
+
