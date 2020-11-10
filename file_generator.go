@@ -1,10 +1,28 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"strconv"
 )
+
+func OffsetByteInsert(inBytes []byte, payload []byte, offset uint, replace bool) {
+
+}
+
+func KeyByteInsert(inBytes []byte, payload []byte, keyTarget string, replace bool) {
+	//! Search for matching keyTarget
+	//index := bytes.Index(inBytes, []byte(keyTarget))
+	if replace {
+		bytes.Replace(inBytes, []byte(keyTarget), payload, 1) //n = number of replacements
+	} else {
+		index := bytes.Index(inBytes, []byte(keyTarget))
+		//TODO: Either split the InBytes at the index in to two and append payload to first part and second part after payload
+		//TODO:  or find alternative way to insert at that location of bytes.
+	}
+
+}
 
 // FileGenerator creates files depending on the input parameters
 func FileGenerator(inputCorpusFilename string, numOfFiles int, mutationType string, excludedBytes string, payloadSizeFl float64, useOffset bool, offset uint, replace bool) {

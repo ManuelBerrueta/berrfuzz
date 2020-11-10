@@ -39,6 +39,18 @@ func CheckTargetPath(targetBinName string) string {
 	return path
 }
 
+type Settings struct {
+	inputCorpusFilename string
+	numOfFiles          int
+	mutationType        string
+	excludedBytes       string
+	payloadSizeFl       float64
+	useOffset           bool
+	offset              uint
+	replace             bool
+	keytarget           string
+}
+
 func main() {
 	fmt.Println(string(ColorGreen), "-=BerrFuzz", string(ColorReset))
 
