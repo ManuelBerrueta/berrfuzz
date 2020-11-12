@@ -8,15 +8,15 @@ import (
 )
 
 // OffsetByteInsert will insert the payload at the given byte offset
-func OffsetByteInsert(inBytes []byte, payload []byte, offset uint) {
+func OffsetByteInsert(inBytes []byte, payload []byte, offset uint) []byte {
 	appendedBytes := append(inBytes[:offset], payload[:]...)
 	//! Append the rest of the inBytes from the index to the back of the payload
 	appendedBytes = append(appendedBytes, inBytes[offset+1:]...)
-	inBytes = appendedBytes
+	return appendedBytes
 }
 
 // KeyByteInsert will insert the payload at the given keyTarget bytes location
-func KeyByteInsert(inBytes []byte, payload []byte, keyTarget string, replace bool) {
+func KeyByteInsert(inBytes []byte, payload []byte, keyTarget string, replace bool) []byte {
 	if replace {
 		bytes.Replace(inBytes, []byte(keyTarget), payload, 1) //n = number of replacements
 	} else {
@@ -30,6 +30,28 @@ func KeyByteInsert(inBytes []byte, payload []byte, keyTarget string, replace boo
 		appendedBytes = append(appendedBytes, inBytes[(index+len(keyTarget)):]...)
 		inBytes = appendedBytes
 	}
+	return inBytes
+}
+
+// ByteRangeCutter removes a certain number (numOfBytesToCut) of bytes from inBytes
+func ByteRangeCutter(inBytes []byte, offset uint, numOfBytesToCut uint) []byte {
+	cutBytes := inBytes[:offset-1]
+	cutBytes = append(cutBytes, inBytes[(offset+numOfBytesToCut):]...)
+	return cutBytes
+}
+
+// ByteTargetTrimmer trims/removes a certain number (numOfInstancestoCut) of the targetBytes from inBytes
+func ByteTargetTrimmer(inBytes []byte, targetBytes []byte, numOfInstancesToCut int) []byte {
+	for i := 0; i < numOfInstancesToCut; i++ {
+		inBytes = bytes.Trim(inBytes, string(targetBytes))
+	}
+	return inBytes
+}
+
+// ByteTargetClipper removes all instances of targetBytes from inBytes
+func ByteTargetClipper(inBytes []byte, targetBytes []byte) []byte {
+	inBytes = bytes.TrimRight(inBytes, string(targetBytes))
+	return inBytes
 }
 
 // FileGenerator creates files depending on the input parameters
