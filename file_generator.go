@@ -7,21 +7,29 @@ import (
 	"strconv"
 )
 
-func OffsetByteInsert(inBytes []byte, payload []byte, offset uint, replace bool) {
-
+// OffsetByteInsert will insert the payload at the given byte offset
+func OffsetByteInsert(inBytes []byte, payload []byte, offset uint) {
+	appendedBytes := append(inBytes[:offset], payload[:]...)
+	//! Append the rest of the inBytes from the index to the back of the payload
+	appendedBytes = append(appendedBytes, inBytes[offset+1:]...)
+	inBytes = appendedBytes
 }
 
+// KeyByteInsert will insert the payload at the given keyTarget bytes location
 func KeyByteInsert(inBytes []byte, payload []byte, keyTarget string, replace bool) {
-	//! Search for matching keyTarget
-	//index := bytes.Index(inBytes, []byte(keyTarget))
 	if replace {
 		bytes.Replace(inBytes, []byte(keyTarget), payload, 1) //n = number of replacements
 	} else {
 		index := bytes.Index(inBytes, []byte(keyTarget))
 		//TODO: Either split the InBytes at the index in to two and append payload to first part and second part after payload
 		//TODO:  or find alternative way to insert at that location of bytes.
+		//inBytes = append(payload,)
+		//! Append the payload to the inBytes at desired index
+		appendedBytes := append(inBytes[:index-1], payload[:]...)
+		//! Append the rest of the inBytes from the index to the back of the payload
+		appendedBytes = append(appendedBytes, inBytes[(index+len(keyTarget)):]...)
+		inBytes = appendedBytes
 	}
-
 }
 
 // FileGenerator creates files depending on the input parameters
