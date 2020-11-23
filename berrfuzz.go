@@ -39,20 +39,43 @@ func CheckTargetPath(targetBinName string) string {
 	return path
 }
 
+// Settings will carry the fuzzing settings in a modular way
 type Settings struct {
-	inputCorpusFilename string
-	numOfFiles          int
-	mutationType        string
-	excludedBytes       string
-	payloadSizeFl       float64
-	useOffset           bool
-	offset              uint
-	replace             bool
-	keytarget           string
+	InputCorpusFilename         string
+	NumTarget                   int
+	MutationType                string
+	ExcludedBytes               string
+	PayloadSizeFl               float64
+	UseOffset                   bool
+	Offset                      uint
+	Replace                     bool
+	KeyTarget                   string
+	OS                          string
+	CLI                         bool
+	CorpusPayloadFilenamestring string
+	pathPrefix                  string
+}
+
+// Banner prints the title banner to the screen
+func Banner() {
+	asciiBanner :=
+		`
+
+		██████╗ ███████╗██████╗ ██████╗ ███████╗██╗   ██╗███████╗███████╗
+		██╔══██╗██╔════╝██╔══██╗██╔══██╗██╔════╝██║   ██║╚══███╔╝╚══███╔╝
+		██████╔╝█████╗  ██████╔╝██████╔╝█████╗  ██║   ██║  ███╔╝   ███╔╝ 
+		██╔══██╗██╔══╝  ██╔══██╗██╔══██╗██╔══╝  ██║   ██║ ███╔╝   ███╔╝  
+		██████╔╝███████╗██║  ██║██║  ██║██║     ╚██████╔╝███████╗███████╗
+		╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝      ╚═════╝ ╚══════╝╚══════╝
+																		 
+		
+`
+	fmt.Println(string(ColorGreen), asciiBanner, string(ColorReset))
 }
 
 func main() {
-	fmt.Println(string(ColorGreen), "-=BerrFuzz", string(ColorReset))
+
+	var settings Settings
 
 	cliPtr := flag.Bool("cli", false, "Use this flag for command line input as a payload")
 	cleanPtr := flag.Bool("clean", false, "Use this flag to delete the log file and start with a fresh one")
@@ -74,19 +97,35 @@ func main() {
 	replacePtr := flag.Bool("r", false, "Replace bytes with the payload rather than inserting the bytes")
 	useOffsetPtr := flag.Bool("useoffset", false, "Tells BerrFuzz that you would like to insert the payload at a certain offset. Use with -o <int> flag for offset")
 	offsetPtr := flag.Uint("o", 0, "Tells BerrFuzz what offset to insert the payload. This must be used in conjunction with the useoffset flag")
+	keyTargetPtr := flag.String("keytarget", "", "Provide target bytes in string form as a target location to fuzz")
 
 	flag.Parse()
 
-	//TODO: Consider a mode selector
-	//TODO: Logic for File Generator
-	//! If *corpusFilenamePtr is empty string, then we will generate random bytes for files
-	if *corpusFilenamePtr != "" && *numTargerPtr != 0 && *generatorPtr {
-		FileGenerator(*corpusFilenamePtr, *numTargerPtr, *mutationTypePtr, *exludeBytesPtr, *payloadSizePtr, *useOffsetPtr, *offsetPtr, *replacePtr)
-	}
+	Banner()
 
 	SetupLogger(cleanPtr)
 
-	pathPrefix := OSCheck()
+	pathPrefix, runningOS := OSCheck()
+
+	//TODO: Fill struct values
+	settings.InputCorpusFilename = *corpusFilenamePtr
+	settings.NumTarget = *numTargerPtr
+	settings.MutationType = *mutationTypePtr
+	settings.ExcludedBytes = *exludeBytesPtr
+	settings.PayloadSizeFl = *payloadSizePtr
+	settings.UseOffset = *useOffsetPtr
+	settings.Offset = *offsetPtr
+	settings.Replace = *replacePtr
+	settings.KeyTarget = *keyTargetPtr
+	settings.OS = runningOS
+	settings.pathPrefix = pathPrefix
+
+	//! If *corpusFilenamePtr is empty string, then we will generate random bytes for files
+	//if *corpusFilenamePtr != "" && *numTargerPtr != 0 && *generatorPtr
+	if *generatorPtr {
+		//FileGenerator(*corpusFilenamePtr, *numTargerPtr, *mutationTypePtr, *exludeBytesPtr, *payloadSizePtr, *useOffsetPtr, *offsetPtr, *replacePtr)
+		FileGenerator(settings)
+	}
 
 	// Corpus intake
 	corpusFileBytes := make([]byte, 0)

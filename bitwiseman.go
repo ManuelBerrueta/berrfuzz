@@ -85,3 +85,14 @@ func ReverseByte(byteToReverse byte) byte {
 	reversedByte := bits.Reverse(uint(byteToReverse))
 	return byte(reversedByte)
 }
+
+//* Strings ops
+
+func strExists(inStr []string, target string) (bool, int) {
+	for i, char := range inStr {
+		if char == target {
+			return true, i
+		}
+	}
+	return false, -1
+}

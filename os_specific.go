@@ -5,7 +5,8 @@ import (
 	"runtime"
 )
 
-func OSCheck() string {
+// OSCheck checks the operating system for OS specific functionality
+func OSCheck() (string, string) {
 	// OS Check run for running compatible commands
 	// WIP
 	//OS := ""
@@ -32,5 +33,5 @@ func OSCheck() string {
 		//OS = "darwin"
 		pathPrefix = "./"
 	}
-	return pathPrefix
+	return pathPrefix, runtime.GOOS
 }
